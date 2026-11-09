@@ -1,15 +1,20 @@
 {
   "name": "doctor-tracker-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Doctor Tracker REST API",
+  "main": "dist/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
+  "engines": {
+    "node": ">=26"
+  },
   "dependencies": {
     "@better-auth/mongo-adapter": "^1.7.18",
     "better-auth": "^1.7.18",
