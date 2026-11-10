@@ -59,6 +59,8 @@ All business routes require an administrator session. Lists use `data` plus `pag
 
 Doctor filters: `search`, `specialization`, `hospital`, `from`, `to`, `page`, `pageSize`. Patient filters: `search`, `condition`, `doctorId`, `from`, `to`, `page`, `pageSize`.
 
+Doctor specialization must be one of the predefined values in `src/modules/doctors/specializations.ts`; the API rejects other values before saving a doctor.
+
 ## Render deployment
 
 Deploy this repository as a Node web service using Node 26, `npm ci`, `npm run build`, and `npm start`. Set `NODE_ENV=production`, `MONGODB_URI`, `MONGODB_DB_NAME`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `FRONTEND_ORIGIN` in Render; Render supplies `PORT`. Set `/health` as the health-check path. Configure Atlas network access for the service and keep database credentials in Render settings.

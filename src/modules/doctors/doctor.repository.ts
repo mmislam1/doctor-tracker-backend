@@ -1,11 +1,12 @@
 import { ObjectId } from "mongodb";
 import { database } from "../../config/database.js";
 import type { CreateDoctorInput } from "./doctor.schema.js";
+import type { DoctorSpecialization } from "./specializations.js";
 
 export interface Doctor {
   _id: import("mongodb").ObjectId;
   name: string;
-  specialization: string;
+  specialization: DoctorSpecialization;
   hospital: string;
   phone: string;
   email: string;

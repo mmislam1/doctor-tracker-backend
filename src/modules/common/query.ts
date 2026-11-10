@@ -1,6 +1,7 @@
 import { ObjectId, type Filter, type Document } from "mongodb";
 import { z } from "zod";
 import { HttpError } from "../../middleware/error.middleware.js";
+import { doctorSpecializationSchema } from "../doctors/specializations.js";
 
 const pageNumber = z.coerce.number().int().min(1).default(1);
 const pageSizeNumber = z.coerce.number().int().min(1).max(100).default(20);
@@ -14,7 +15,7 @@ const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
 export const paginationSchema = z.object({ page: pageNumber, pageSize: pageSizeNumber });
 export const doctorListQuerySchema = paginationSchema.extend({
   search: searchText,
-  specialization: z.string().trim().min(1).max(100).optional(),
+  specialization: doctorSpecializationSchema.optional(),
   hospital: z.string().trim().min(1).max(150).optional(),
   from: dateOnly,
   to: dateOnly,
