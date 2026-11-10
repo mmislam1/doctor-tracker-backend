@@ -2,14 +2,14 @@ import { ObjectId, type Filter } from "mongodb";
 import { HttpError } from "../../middleware/error.middleware.js";
 import { applyDateRange, escapeTextSearch, paginationMeta, paginationOptions, patientListQuerySchema } from "../common/query.js";
 import { appointments, type Appointment } from "../appointments/appointment.repository.js";
-import { createPatientAppointment, deletePatientAppointments, listPatientAppointments } from "../appointments/appointment.service.js";
+import { createPatientAppointment, deletePatientAppointments, includeDoctorNames, listPatientAppointments, type AppointmentWithDoctor } from "../appointments/appointment.service.js";
 import { doctorExists } from "../doctors/doctor.service.js";
 import { patients, type Patient } from "./patient.repository.js";
 import type { CreatePatientInput, UpdatePatientInput } from "./patient.schema.js";
 import type { z } from "zod";
 
 export type PatientListQuery = z.infer<typeof patientListQuerySchema>;
-export type PatientWithAppointments = Patient & { appointments: Appointment[] };
+export type PatientWithAppointments = Patient & { appointments: AppointmentWithDoctor[] };
 
 export async function createPatient(input: CreatePatientInput): Promise<PatientWithAppointments> {
   const doctorId = new ObjectId(input.doctorId);
@@ -31,7 +31,7 @@ export async function createPatient(input: CreatePatientInput): Promise<PatientW
       appointmentAt: input.appointmentAt,
       status: input.status,
     });
-    return { ...patient, appointments: [appointment] };
+    return { ...patient, appointments: await includeDoctorNames([appointment]) };
   } catch (error) {
     await deletePatientAppointments(patient._id).catch(() => undefined);
     await patients.deleteOne({ _id: patient._id }).catch(() => undefined);
@@ -70,8 +70,9 @@ export async function listPatients(query: PatientListQuery, doctorId?: ObjectId)
   ]);
   const patientIds = items.map(({ _id }) => _id);
   const visits = await listPatientAppointments(patientIds, visitsFilter);
-  const visitsByPatient = new Map<string, Appointment[]>();
-  for (const visit of visits) {
+  const visitsWithDoctors = await includeDoctorNames(visits);
+  const visitsByPatient = new Map<string, AppointmentWithDoctor[]>();
+  for (const visit of visitsWithDoctors) {
     const key = visit.patientId.toHexString();
     const group = visitsByPatient.get(key) ?? [];
     group.push(visit);
@@ -87,7 +88,7 @@ export async function listPatients(query: PatientListQuery, doctorId?: ObjectId)
 export async function getPatientWithAppointments(patientId: ObjectId): Promise<PatientWithAppointments | null> {
   const patient = await patients.findOne({ _id: patientId });
   if (!patient) return null;
-  const visits = await listPatientAppointments([patientId]);
+  const visits = await includeDoctorNames(await listPatientAppointments([patientId]));
   return { ...patient, appointments: visits };
 }
 

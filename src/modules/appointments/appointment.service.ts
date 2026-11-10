@@ -2,8 +2,19 @@ import { ObjectId, type Filter } from "mongodb";
 import { HttpError } from "../../middleware/error.middleware.js";
 import { doctorExists } from "../doctors/doctor.service.js";
 import { patients } from "../patients/patient.repository.js";
+import { doctors } from "../doctors/doctor.repository.js";
 import { appointments, type Appointment } from "./appointment.repository.js";
 import type { CreateAppointmentInput, UpdateAppointmentInput } from "./appointment.schema.js";
+
+export type AppointmentWithDoctor = Appointment & { doctorName: string };
+
+export async function includeDoctorNames(records: Appointment[]): Promise<AppointmentWithDoctor[]> {
+  if (records.length === 0) return [];
+  const doctorIds = [...new Map(records.map((record) => [record.doctorId.toHexString(), record.doctorId])).values()];
+  const doctorRecords = await doctors.find({ _id: { $in: doctorIds } }, { projection: { _id: 1, name: 1 } }).toArray();
+  const namesById = new Map(doctorRecords.map((doctor) => [doctor._id.toHexString(), doctor.name]));
+  return records.map((record) => ({ ...record, doctorName: namesById.get(record.doctorId.toHexString()) ?? "Unknown doctor" }));
+}
 
 export async function createPatientAppointment(patientId: ObjectId, input: CreateAppointmentInput): Promise<Appointment> {
   if (!(await patients.findOne({ _id: patientId }, { projection: { _id: 1 } }))) {

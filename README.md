@@ -61,7 +61,7 @@ All business routes require an administrator session. Lists use `data` plus `pag
 
 Doctor filters: `search`, `specialization`, `hospital`, `from`, `to`, `page`, `pageSize`. Patient filters: `search` (name/condition), `condition`, `doctorId`, `status`, `from`, `to`, `page`, `pageSize`. Appointment statuses are `upcoming`, `completed`, `incomplete`, `rescheduled`, `cancelled`, and `unknown` (used for migrated historical visits with an unspecified status).
 
-Patient profiles are stored in `patients`; each visit is stored separately in `appointments`, linked by `patientId` and `doctorId`. Patient list responses include an `appointments` array, and appointment dates are returned as ISO 8601 date-times. On startup, legacy doctor/date fields on patient records are copied into `appointments` with status `unknown` and removed from the profile after the copy succeeds. This migration is idempotent.
+Patient profiles are stored in `patients`; each visit is stored separately in `appointments`, linked by `patientId` and `doctorId`. Patient list responses include an `appointments` array with the associated doctor's `doctorName`; appointment dates are returned as ISO 8601 date-times. Appointment create and update responses also include `doctorName`. On startup, legacy doctor/date fields on patient records are copied into `appointments` with status `unknown` and removed from the profile after the copy succeeds. This migration is idempotent.
 
 Doctor specialization must be one of the predefined values in `src/modules/doctors/specializations.ts`; the API rejects other values before saving a doctor.
 
