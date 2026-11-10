@@ -1,6 +1,6 @@
 # Doctor Tracker API
 
-Standalone Node.js 26+, TypeScript, and Express 5 REST API for doctor and patient records, dashboard aggregates, and administrator authentication. MongoDB Atlas stores the application and Better Auth data.
+Standalone Node.js 26+, TypeScript, and Express 5 REST API for doctor and patient records, dashboard aggregates, appointments and administrator authentication. MongoDB Atlas stores the application and Better Auth data.
 
 ## Local setup
 
