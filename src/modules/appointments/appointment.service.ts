@@ -6,14 +6,21 @@ import { doctors } from "../doctors/doctor.repository.js";
 import { appointments, type Appointment } from "./appointment.repository.js";
 import type { CreateAppointmentInput, UpdateAppointmentInput } from "./appointment.schema.js";
 
-export type AppointmentWithDoctor = Appointment & { doctorName: string };
+export type AppointmentWithDoctorDetails = Appointment & { doctorName: string; doctorSpecialization: string };
 
-export async function includeDoctorNames(records: Appointment[]): Promise<AppointmentWithDoctor[]> {
+export async function includeDoctorDetails(records: Appointment[]): Promise<AppointmentWithDoctorDetails[]> {
   if (records.length === 0) return [];
   const doctorIds = [...new Map(records.map((record) => [record.doctorId.toHexString(), record.doctorId])).values()];
-  const doctorRecords = await doctors.find({ _id: { $in: doctorIds } }, { projection: { _id: 1, name: 1 } }).toArray();
-  const namesById = new Map(doctorRecords.map((doctor) => [doctor._id.toHexString(), doctor.name]));
-  return records.map((record) => ({ ...record, doctorName: namesById.get(record.doctorId.toHexString()) ?? "Unknown doctor" }));
+  const doctorRecords = await doctors.find({ _id: { $in: doctorIds } }, { projection: { _id: 1, name: 1, specialization: 1 } }).toArray();
+  const doctorsById = new Map(doctorRecords.map((doctor) => [doctor._id.toHexString(), doctor]));
+  return records.map((record) => {
+    const doctor = doctorsById.get(record.doctorId.toHexString());
+    return {
+      ...record,
+      doctorName: doctor?.name ?? "Unknown doctor",
+      doctorSpecialization: doctor?.specialization ?? "Unknown specialization",
+    };
+  });
 }
 
 export async function createPatientAppointment(patientId: ObjectId, input: CreateAppointmentInput): Promise<Appointment> {

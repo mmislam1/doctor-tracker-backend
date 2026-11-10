@@ -2,7 +2,7 @@ import type { RequestHandler } from "express";
 import { createAppointmentSchema, updateAppointmentSchema } from "../appointments/appointment.schema.js";
 import { createPatientSchema, updatePatientSchema } from "./patient.schema.js";
 import { createPatient, deletePatient, listPatients, updatePatient } from "./patient.service.js";
-import { createPatientAppointment, includeDoctorNames, updatePatientAppointment } from "../appointments/appointment.service.js";
+import { createPatientAppointment, includeDoctorDetails, updatePatientAppointment } from "../appointments/appointment.service.js";
 import { doctorExists } from "../doctors/doctor.service.js";
 import { doctorIdSchema, patientAppointmentIdSchema, patientIdSchema, parseObjectId, patientListQuerySchema } from "../common/query.js";
 
@@ -35,14 +35,14 @@ export const postPatientAppointment: RequestHandler = async (req, res) => {
   const { patientId } = patientIdSchema.parse(req.params);
   const input = createAppointmentSchema.parse(req.body);
   const appointment = await createPatientAppointment(parseObjectId(patientId), input);
-  res.status(201).json({ data: (await includeDoctorNames([appointment]))[0] });
+  res.status(201).json({ data: (await includeDoctorDetails([appointment]))[0] });
 };
 
 export const patchPatientAppointment: RequestHandler = async (req, res) => {
   const { patientId, appointmentId } = patientAppointmentIdSchema.parse(req.params);
   const input = updateAppointmentSchema.parse(req.body);
   const appointment = await updatePatientAppointment(parseObjectId(patientId), parseObjectId(appointmentId), input);
-  res.json({ data: (await includeDoctorNames([appointment]))[0] });
+  res.json({ data: (await includeDoctorDetails([appointment]))[0] });
 };
 
 export const getPatients: RequestHandler = async (req, res) => {
