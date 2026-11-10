@@ -3,7 +3,6 @@ import type { ObjectId } from "mongodb";
 
 export interface Patient {
   _id: ObjectId;
-  doctorId: ObjectId;
   name: string;
   condition: string;
   createdAt: Date;

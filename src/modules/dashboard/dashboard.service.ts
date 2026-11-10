@@ -18,10 +18,11 @@ export async function getDashboardSummary() {
     doctors.aggregate<DoctorPatientCount>([
       {
         $lookup: {
-          from: "patients",
+          from: "appointments",
           let: { doctorRef: "$_id" },
           pipeline: [
             { $match: { $expr: { $eq: ["$doctorId", "$$doctorRef"] } } },
+            { $group: { _id: "$patientId" } },
             { $count: "count" },
           ],
           as: "patientTotals",

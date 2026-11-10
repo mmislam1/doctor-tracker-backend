@@ -1,6 +1,7 @@
 import { ObjectId, type Filter, type Document } from "mongodb";
 import { z } from "zod";
 import { HttpError } from "../../middleware/error.middleware.js";
+import { appointmentStatusSchema } from "../appointments/appointment.schema.js";
 import { doctorSpecializationSchema } from "../doctors/specializations.js";
 
 const pageNumber = z.coerce.number().int().min(1).default(1);
@@ -27,6 +28,7 @@ export const patientListQuerySchema = paginationSchema.extend({
   search: searchText,
   condition: z.string().trim().min(1).max(100).optional(),
   doctorId: z.string().regex(/^[a-f\d]{24}$/i).optional(),
+  status: appointmentStatusSchema.optional(),
   from: dateOnly,
   to: dateOnly,
 }).refine((query) => !query.from || !query.to || query.from <= query.to, {
@@ -35,6 +37,10 @@ export const patientListQuerySchema = paginationSchema.extend({
 
 export const doctorIdSchema = z.object({ doctorId: z.string().regex(/^[a-f\d]{24}$/i) });
 export const patientIdSchema = z.object({ patientId: z.string().regex(/^[a-f\d]{24}$/i) });
+export const patientAppointmentIdSchema = z.object({
+  patientId: z.string().regex(/^[a-f\d]{24}$/i),
+  appointmentId: z.string().regex(/^[a-f\d]{24}$/i),
+});
 
 export type PaginationInput = z.infer<typeof paginationSchema>;
 
