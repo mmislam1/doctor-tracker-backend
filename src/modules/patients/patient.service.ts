@@ -10,6 +10,7 @@ import type { z } from "zod";
 
 export type PatientListQuery = z.infer<typeof patientListQuerySchema>;
 export type PatientWithAppointments = Patient & { appointments: AppointmentWithDoctorDetails[] };
+export type PatientListItem = Patient & { appointments: AppointmentWithDoctorDetails[]; upcomingAppointmentCount: number };
 
 function isDuplicatePhoneError(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === 11000;
@@ -95,19 +96,53 @@ export async function listPatients(query: PatientListQuery, doctorId?: ObjectId)
     patients.countDocuments(filter),
   ]);
   const patientIds = items.map(({ _id }) => _id);
-  const visits = await listPatientAppointments(patientIds, visitsFilter);
-  const visitsWithDoctors = await includeDoctorDetails(visits);
-  const visitsByPatient = new Map<string, AppointmentWithDoctorDetails[]>();
-  for (const visit of visitsWithDoctors) {
-    const key = visit.patientId.toHexString();
-    const group = visitsByPatient.get(key) ?? [];
-    group.push(visit);
-    visitsByPatient.set(key, group);
-  }
+  const upcomingSummaries = patientIds.length === 0 ? [] : await appointments.aggregate<{
+    _id: ObjectId;
+    count: number;
+    next: Appointment;
+  }>([
+    { $match: {
+      patientId: { $in: patientIds },
+      ...(doctorId ? { doctorId } : {}),
+      status: { $in: ["upcoming", "rescheduled"] },
+      appointmentAt: { $gte: new Date() },
+    } },
+    { $sort: { appointmentAt: 1, createdAt: 1, _id: 1 } },
+    { $group: { _id: "$patientId", count: { $sum: 1 }, next: { $first: "$$ROOT" } } },
+  ]).toArray();
+  const upcomingCounts = new Map(upcomingSummaries.map(({ _id, count }) => [_id.toHexString(), count]));
+  const closestVisits = await includeDoctorDetails(upcomingSummaries.map(({ next }) => next));
+  const closestVisitByPatientWithDoctor = new Map(closestVisits.map((visit) => [visit.patientId.toHexString(), visit]));
 
   return {
-    items: items.map((patient) => ({ ...patient, appointments: visitsByPatient.get(patient._id.toHexString()) ?? [] })),
+    items: items.map((patient): PatientListItem => {
+      const patientKey = patient._id.toHexString();
+      const closestVisit = closestVisitByPatientWithDoctor.get(patientKey);
+      return {
+        ...patient,
+        appointments: closestVisit ? [closestVisit] : [],
+        upcomingAppointmentCount: upcomingCounts.get(patientKey) ?? 0,
+      };
+    }),
     pagination: paginationMeta(query.page, query.pageSize, total),
+  };
+}
+
+export async function listPatientAppointmentPage(patientId: ObjectId, page: number, pageSize: number) {
+  if (!(await patients.findOne({ _id: patientId }, { projection: { _id: 1 } }))) {
+    throw new HttpError(404, "PATIENT_NOT_FOUND", "Patient was not found");
+  }
+  const [items, total] = await Promise.all([
+    appointments.find({ patientId })
+      .sort({ appointmentAt: 1, createdAt: 1, _id: 1 })
+      .skip(paginationOptions({ page, pageSize }).skip)
+      .limit(pageSize)
+      .toArray(),
+    appointments.countDocuments({ patientId }),
+  ]);
+  return {
+    items: await includeDoctorDetails(items),
+    pagination: paginationMeta(page, pageSize, total),
   };
 }
 

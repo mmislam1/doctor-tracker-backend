@@ -1,10 +1,10 @@
 import type { RequestHandler } from "express";
 import { createAppointmentSchema, updateAppointmentSchema } from "../appointments/appointment.schema.js";
 import { createPatientSchema, updatePatientSchema } from "./patient.schema.js";
-import { createPatient, deletePatient, listPatients, updatePatient } from "./patient.service.js";
+import { createPatient, deletePatient, listPatientAppointmentPage, listPatients, updatePatient } from "./patient.service.js";
 import { createPatientAppointment, includeDoctorDetails, updatePatientAppointment } from "../appointments/appointment.service.js";
 import { doctorExists } from "../doctors/doctor.service.js";
-import { doctorIdSchema, patientAppointmentIdSchema, patientIdSchema, parseObjectId, patientListQuerySchema } from "../common/query.js";
+import { doctorIdSchema, paginationSchema, patientAppointmentIdSchema, patientIdSchema, parseObjectId, patientListQuerySchema } from "../common/query.js";
 
 export const getDoctorPatients: RequestHandler = async (req, res) => {
   const { doctorId } = doctorIdSchema.parse(req.params);
@@ -48,6 +48,13 @@ export const patchPatientAppointment: RequestHandler = async (req, res) => {
 export const getPatients: RequestHandler = async (req, res) => {
   const query = patientListQuerySchema.parse(req.query);
   const result = await listPatients(query);
+  res.json({ data: result.items, pagination: result.pagination });
+};
+
+export const getPatientAppointments: RequestHandler = async (req, res) => {
+  const { patientId } = patientIdSchema.parse(req.params);
+  const { page, pageSize } = paginationSchema.parse(req.query);
+  const result = await listPatientAppointmentPage(parseObjectId(patientId), page, pageSize);
   res.json({ data: result.items, pagination: result.pagination });
 };
 

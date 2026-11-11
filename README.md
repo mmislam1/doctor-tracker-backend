@@ -54,14 +54,14 @@ All business routes require an administrator session. Lists use `data` plus `pag
 | `GET`, `POST` | `/api/v1/doctors` | Search/filter/page doctors; create a doctor. |
 | `GET`, `POST` | `/api/v1/doctors/:doctorId/patients` | List patients associated with a doctor, or create a patient profile and its first appointment. Create payloads include `name`, `condition`, and `appointmentAt` as an ISO 8601 date-time. |
 | `GET`, `POST` | `/api/v1/patients` | Search/filter/page patient profiles, or create a profile with its first doctor appointment. |
-| `PATCH`, `DELETE` | `/api/v1/patients/:patientId` | Edit a patient's name or condition; deleting a patient also deletes their appointments. |
-| `POST` | `/api/v1/patients/:patientId/appointments` | Attach an appointment to an existing patient profile. Payload: `doctorId`, `appointmentAt`, optional `status`. |
+| `PATCH`, `DELETE` | `/api/v1/patients/:patientId` | Edit a patient's name, condition, or phone; deleting a patient also deletes their appointments. |
+| `GET`, `POST` | `/api/v1/patients/:patientId/appointments` | Page through a patient's appointment history, or attach an appointment to the profile. Create payload: `doctorId`, `appointmentAt`, optional `status`. |
 | `PATCH` | `/api/v1/patients/:patientId/appointments/:appointmentId` | Update the appointment date/time or status. |
 | Better Auth | `/api/auth/*` | Sign-in, session, and sign-out endpoints. |
 
 Doctor filters: `search`, `specialization`, `hospital`, `from`, `to`, `page`, `pageSize`. Patient filters: `search` (name/condition), `condition`, `doctorId`, `status`, `from`, `to`, `page`, `pageSize`. Appointment statuses are `upcoming`, `completed`, `incomplete`, `rescheduled`, `cancelled`, and `unknown` (used for migrated historical visits with an unspecified status).
 
-Patient profiles are stored in `patients`; each visit is stored separately in `appointments`, linked by `patientId` and `doctorId`. Patient list responses include an `appointments` array with the associated doctor's name and specialization resolved from `doctorId`; appointment dates are returned as ISO 8601 date-times. Appointment create and update responses also include these display fields. They are response data, not stored in the `appointments` documents. On startup, legacy doctor/date fields on patient records are copied into `appointments` with status `unknown` and removed from the profile after the copy succeeds. This migration is idempotent.
+Patient profiles are stored in `patients`; each visit is stored separately in `appointments`, linked by `patientId` and `doctorId`. Patient list responses include the closest future appointment with status `upcoming` or `rescheduled`, resolved doctor name and specialization, plus `upcomingAppointmentCount`. Full appointment history is available through the paginated patient appointments route. Appointment dates are returned as ISO 8601 date-times. Appointment create and update responses also include doctor display fields; these are response data, not stored in appointment documents. On startup, legacy doctor/date fields on patient records are copied into `appointments` with status `unknown` and removed from the profile after the copy succeeds. This migration is idempotent.
 
 Doctor specialization must be one of the predefined values in `src/modules/doctors/specializations.ts`; the API rejects other values before saving a doctor.
 
