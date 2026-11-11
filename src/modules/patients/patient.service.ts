@@ -11,9 +11,30 @@ import type { z } from "zod";
 export type PatientListQuery = z.infer<typeof patientListQuerySchema>;
 export type PatientWithAppointments = Patient & { appointments: AppointmentWithDoctorDetails[] };
 
+function isDuplicatePhoneError(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === 11000;
+}
+
+function throwPhoneConflict(error: unknown): never {
+  if (isDuplicatePhoneError(error)) {
+    throw new HttpError(409, "PATIENT_PHONE_EXISTS", "A patient with this phone number already exists");
+  }
+  throw error;
+}
+
+async function ensurePhoneAvailable(phone: string | undefined, patientId?: ObjectId): Promise<void> {
+  if (!phone) return;
+  const filter: Filter<Patient> = { phone };
+  if (patientId) filter._id = { $ne: patientId };
+  if (await patients.findOne(filter, { projection: { _id: 1 } })) {
+    throw new HttpError(409, "PATIENT_PHONE_EXISTS", "A patient with this phone number already exists");
+  }
+}
+
 export async function createPatient(input: CreatePatientInput): Promise<PatientWithAppointments> {
   const doctorId = new ObjectId(input.doctorId);
   if (!(await doctorExists(doctorId))) throw new HttpError(404, "DOCTOR_NOT_FOUND", "Doctor was not found");
+  await ensurePhoneAvailable(input.phone);
 
   const now = new Date();
   const patient: Patient = {
@@ -24,7 +45,11 @@ export async function createPatient(input: CreatePatientInput): Promise<PatientW
     createdAt: now,
     updatedAt: now,
   };
-  await patients.insertOne(patient);
+  try {
+    await patients.insertOne(patient);
+  } catch (error) {
+    throwPhoneConflict(error);
+  }
 
   try {
     const appointment = await createPatientAppointment(patient._id, {
@@ -94,11 +119,24 @@ export async function getPatientWithAppointments(patientId: ObjectId): Promise<P
 }
 
 export async function updatePatient(patientId: ObjectId, input: UpdatePatientInput): Promise<PatientWithAppointments> {
-  const updated = await patients.findOneAndUpdate(
-    { _id: patientId },
-    { $set: { ...input, updatedAt: new Date() } },
-    { returnDocument: "after" },
-  );
+  await ensurePhoneAvailable(input.phone, patientId);
+  const { phone, ...profile } = input;
+  const update: { $set: Record<string, unknown>; $unset?: Record<string, ""> } = {
+    $set: { ...profile, updatedAt: new Date() },
+  };
+  if (phone === "") update.$unset = { phone: "" };
+  else if (phone !== undefined) update.$set.phone = phone;
+
+  let updated: Patient | null;
+  try {
+    updated = await patients.findOneAndUpdate(
+      { _id: patientId },
+      update,
+      { returnDocument: "after" },
+    );
+  } catch (error) {
+    throwPhoneConflict(error);
+  }
   if (!updated) throw new HttpError(404, "PATIENT_NOT_FOUND", "Patient was not found");
   return (await getPatientWithAppointments(patientId))!;
 }

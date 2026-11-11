@@ -37,9 +37,23 @@ async function migrateLegacyPatientAssociations(): Promise<void> {
   }
 }
 
+async function ensurePatientPhoneNumbersAreUnique(): Promise<void> {
+  const hasDuplicates = await database.collection<Document>("patients").aggregate([
+    { $match: { phone: { $type: "string", $gt: "" } } },
+    { $group: { _id: "$phone", count: { $sum: 1 } } },
+    { $match: { count: { $gt: 1 } } },
+    { $limit: 1 },
+  ]).hasNext();
+
+  if (hasDuplicates) {
+    throw new Error("Duplicate patient phone numbers must be resolved in MongoDB before the unique phone index can be created.");
+  }
+}
+
 export async function connectDatabase(): Promise<void> {
   await mongoClient.connect();
   await migrateLegacyPatientAssociations();
+  await ensurePatientPhoneNumbersAreUnique();
   await Promise.all([
     database.collection("doctors").createIndex({ createdAt: -1, _id: -1 }),
     database.collection("doctors").createIndex({ specialization: 1, createdAt: -1, _id: -1 }),
@@ -48,6 +62,11 @@ export async function connectDatabase(): Promise<void> {
     database.collection("doctors").createIndex({ name: "text", email: "text" }, { name: "doctor_search_text" }),
     database.collection("patients").createIndex({ condition: 1, createdAt: -1, _id: -1 }),
     database.collection("patients").createIndex({ createdAt: -1, _id: -1 }),
+    database.collection("patients").createIndex({ phone: 1 }, {
+      unique: true,
+      name: "patient_phone_unique",
+      partialFilterExpression: { phone: { $type: "string", $gt: "" } },
+    }),
     database.collection("patients").createIndex({ name: "text", condition: "text" }, { name: "patient_search_text" }),
     database.collection("appointments").createIndex({ patientId: 1, appointmentAt: -1, _id: -1 }),
     database.collection("appointments").createIndex({ doctorId: 1, appointmentAt: -1, _id: -1 }),
