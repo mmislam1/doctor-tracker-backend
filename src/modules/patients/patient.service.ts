@@ -20,6 +20,7 @@ export async function createPatient(input: CreatePatientInput): Promise<PatientW
     _id: new ObjectId(),
     name: input.name,
     condition: input.condition,
+    ...(input.phone ? { phone: input.phone } : {}),
     createdAt: now,
     updatedAt: now,
   };

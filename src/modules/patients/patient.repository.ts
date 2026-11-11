@@ -5,6 +5,7 @@ export interface Patient {
   _id: ObjectId;
   name: string;
   condition: string;
+  phone?: string;
   createdAt: Date;
   updatedAt: Date;
 }
